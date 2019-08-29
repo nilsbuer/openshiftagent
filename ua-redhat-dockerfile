@@ -1,0 +1,40 @@
+#
+# Dockerfile to build Universal Agent images
+# - UA will run in console mode with any user
+#
+# Set the base image to centos
+FROM registry.access.redhat.com/ubi8/ubi
+#
+MAINTAINER "Colin Cocksedge <colin.cocksedge@stonebranch.com>"
+#
+# Install ua
+ARG ua_version
+ADD ./sb-${ua_version}-linux-2.6-x86_64.tar.Z /tmp
+RUN zcat /tmp/sb-${ua_version}-linux-2.6-x86_64.tar.Z | tar xvf - && \
+    sed -ri 's/\$UNV_DIR\/ubroker\/ubrokerd restart.*/# Do Not Start Ubroker During Install/g' ./unvinst  && \
+    ./unvinst --network_provider oms --oms_servers 7878@localhost --opscli yes --python yes --oms_port 7878 && \
+    rm unvinst *.rpm *.tar upimerge.sh upimerge.log usrmode.inc /tmp/sb-${ua_version}-linux-2.6-x86_64.tar.Z
+EXPOSE 7887 7878
+#
+# Set Permissions for Arbitrary ID Support
+RUN sed -ri 's/security.*/security NONE/g' /etc/universal/uags.conf && \
+    sed -ri 's/security.*/security NONE/g' /etc/universal/udms.conf && \
+    sed -ri 's/security.*/security NONE/g' /etc/universal/ucmds.conf && \
+    sed -ri 's/security.*/security NONE/g' /etc/universal/uctls.conf && \
+    sed -ri 's/security.*/security NONE/g' /etc/universal/uems.conf && \
+    chgrp -R 0 /etc/universal && \
+    chmod -R g=u /etc/universal && \
+    chgrp -R 0 /opt/universal && \
+    chmod -R g=u /opt/universal && \
+    chgrp -R 0 /var/opt/universal && \
+    chmod -R g=u /var/opt/universal && \
+    chmod g=u /etc/passwd
+#
+# Add entrypoint script 
+COPY ./ua_entrypoint /
+RUN chmod 777 /ua_entrypoint
+
+# Set Default userid
+USER 10010
+# Entry Point 
+ENTRYPOINT [ "./ua_entrypoint" ]

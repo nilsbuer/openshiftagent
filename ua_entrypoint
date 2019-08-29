@@ -1,0 +1,153 @@
+#!/bin/bash
+
+echo "Entrypoint Version 1.2"
+
+# Handle Docker Stop and Terminate Ubroker Cleanly
+shutdown() {
+    kill -TERM "$ubroker"
+    wait "$ubroker"
+    exit 0
+}
+# Recognize Terminaton
+trap 'shutdown' SIGINT SIGTERM
+# Support Arbitrary User IDs
+if ! whoami &> /dev/null; then
+  if [ -w /etc/passwd ]; then
+    echo "${USER_NAME:-default}:x:$(id -u):0:${USER_NAME:-default} user:${HOME}:/sbin/nologin" >> /etc/passwd
+  fi
+fi
+# Set netname
+if [ ! -z "$UAG_NETNAME" ]; then
+  sed -ri "s/^netname.*/netname $UAG_NETNAME/g" /etc/universal/uags.conf
+else
+  sed -ri "s/^netname.*/netname $HOSTNAME/g" /etc/universal/uags.conf
+fi
+# Set oms_servers
+if [ ! -z "$UAG_OMS_SERVERS" ]; then
+  sed -ri "s/^oms_servers.*/oms_servers $UAG_OMS_SERVERS/g" /etc/universal/uags.conf
+fi
+# Set Agent Clusters
+if [ ! -z "$UAG_AGENT_CLUSTERS" ]; then
+  sed -i "s/\(^agent_clusters ['\"]*\)/\1$UAG_AGENT_CLUSTERS, /g" /etc/universal/uags.conf
+  # sed -ri "s/^agent_clusters.*/agent_clusters \"$UAG_AGENT_CLUSTERS\"/g" /etc/universal/uags.conf
+fi
+# Set enable_ssl
+if [ ! -z "$UAG_ENABLE_SSL" ]; then
+  grep -q '^enable_ssl' /etc/universal/uags.conf && sed -i 's/^enable_ssl.*/enable_ssl yes/' /etc/universal/uags.conf || echo 'enable_ssl yes' >> /etc/universal/uags.conf
+fi
+# Start OMS Server
+if [ ! -z "$OMS_AUTOSTART" ]; then
+  sed -ri "s/^auto_start.*/auto_start yes/g" /etc/universal/comp/oms
+  sed -ri "s/^restart.*/restart yes/g" /etc/universal/comp/oms
+fi
+# Start UAG Server
+if [ ! -z "$UAG_AUTOSTART" ]; then
+  sed -ri "s/^auto_start.*/auto_start no/g" /etc/universal/comp/uag
+  sed -ri "s/^restart.*/restart no/g" /etc/universal/comp/uag
+fi
+# Start UEM Server
+if [ ! -z "$UEM_AUTOSTART" ]; then
+  sed -ri "s/^auto_start.*/auto_start no/g" /etc/universal/comp/uems
+  sed -ri "s/^restart.*/restart no/g" /etc/universal/comp/uems
+fi
+
+# UCMD_LICENSE=INDESCA,STONEBRANCH,UNIX,DEMO,2020.04.30,10000,10000,10000,10000,10000,B1E9-AABD-E59A-8079-30BF-3B17-2E67-8D21
+if [[ -z "$UCMD_LICENSE" ]]
+then
+    echo "\$UCMD_LICENSE NOT SET, skipping"
+else
+    echo "Setting up LICENSE with \$UCMD_LICENSE"
+    # Add UCMD License
+    IFS=',' read -r -a array <<< "$UCMD_LICENSE"
+    index=0
+    sed -ri "s/# License_Product/License_Product ${array[index]}/g" /etc/universal/ucmd.conf;((index=index+1))
+    sed -ri "s/# License_Customer/License_Customer ${array[index]}/g" /etc/universal/ucmd.conf;((index=index+1))
+    sed -ri "s/# License_OS_Type/License_OS_Type ${array[index]}/g" /etc/universal/ucmd.conf;((index=index+1))
+    sed -ri "s/# License_Type/License_Type ${array[index]}/g" /etc/universal/ucmd.conf;((index=index+1))
+    sed -ri "s/# License_Expiration_Date/License_Expiration_Date ${array[index]}/g" /etc/universal/ucmd.conf;((index=index+1))
+    sed -ri "s/# License_NT_Servers/License_NT_Servers ${array[index]}/g" /etc/universal/ucmd.conf;((index=index+1))
+    sed -ri "s/# License_UNIX_Servers/License_UNIX_Servers ${array[index]}/g" /etc/universal/ucmd.conf;((index=index+1))
+    sed -ri "s/# License_OS400_Servers/License_OS400_Servers ${array[index]}/g" /etc/universal/ucmd.conf;((index=index+1))
+    sed -ri "s/# License_Tandem_Servers/License_OS390_Servers ${array[index]}/g" /etc/universal/ucmd.conf;((index=index+1))
+    sed -ri "s/# License_OS390_Unix_Servers/License_OS390_Unix_Servers ${array[index]}/g" /etc/universal/ucmd.conf;((index=index+1))
+    sed -ri "s/# License_Key/License_Key ${array[index]}/g" /etc/universal/ucmd.conf
+fi
+
+# UDM_LICENSE=INFITRAN,STONEBRANCH,UNIX,DEMO,2020.04.30,10000,10000,10000,10000,10000,D188-1F28-675D-DB06-9216-C11A-83C6-4002
+if [[ -z "$UDM_LICENSE" ]]
+then
+    echo "\$UDM_LICENSE NOT SET, skipping"
+else
+    echo "Setting up LICENSE with \$UDM_LICENSE"
+    # Add UDM License
+    IFS=',' read -r -a array <<< "$UDM_LICENSE"
+    index=0
+    sed -ri "s/# License_Product/License_Product ${array[index]}/g" /etc/universal/udm.conf;((index=index+1))
+    sed -ri "s/# License_Customer/License_Customer ${array[index]}/g" /etc/universal/udm.conf;((index=index+1))
+    sed -ri "s/# License_OS_Type/License_OS_Type ${array[index]}/g" /etc/universal/udm.conf;((index=index+1))
+    sed -ri "s/# License_Type/License_Type DEMO/g" /etc/universal/udm.conf;((index=index+1))
+    sed -ri "s/# License_Expiration_Date/License_Expiration_Date ${array[index]}/g" /etc/universal/udm.conf;((index=index+1))
+    sed -ri "s/# License_NT_Servers/License_NT_Servers ${array[index]}/g" /etc/universal/udm.conf;((index=index+1))
+    sed -ri "s/# License_UNIX_Servers/License_UNIX_Servers ${array[index]}/g" /etc/universal/udm.conf;((index=index+1))
+    sed -ri "s/# License_OS400_Servers/License_OS400_Servers ${array[index]}/g" /etc/universal/udm.conf;((index=index+1))
+    sed -ri "s/# License_OS390_Servers/License_OS390_Servers ${array[index]}/g" /etc/universal/udm.conf;((index=index+1))
+    sed -ri "s/# License_OS390_Unix_Servers/License_OS390_Unix_Servers ${array[index]}/g" /etc/universal/udm.conf;((index=index+1))
+    sed -ri "s/# License_Key/License_Key D188-1F28-675D-DB06-9216-C11A-83C6-4002/g" /etc/universal/udm.conf
+fi
+
+# UPPS_LICENSE=UPPS,STONEBRANCH,UNIX,PERPETUAL,2029.12.31,B335-BCA8-477E-2F0B-BC3B-DEF8-819E-5ADC
+if [[ -z "$UPPS_LICENSE" ]]
+then
+    echo "\$UPPS_LICENSE NOT SET, skipping"
+else
+    echo "Setting up LICENSE with \$UPPS_LICENSE"
+    # Add UPPS License
+    IFS=',' read -r -a array <<< "$UPPS_LICENSE"
+    index=0
+    sed -ri "s/# License_Product/License_Product ${array[index]}/g" /etc/universal/upps.conf;((index=index+1))
+    sed -ri "s/# License_Customer/License_Customer ${array[index]}/g" /etc/universal/upps.conf;((index=index+1))
+    sed -ri "s/# License_OS_Type/License_OS_Type ${array[index]}/g" /etc/universal/upps.conf;((index=index+1))
+    sed -ri "s/# License_Type/License_Type ${array[index]}/g" /etc/universal/upps.conf;((index=index+1))
+    sed -ri "s/# License_Expiration_Date/License_Expiration_Date ${array[index]}/g" /etc/universal/upps.conf;((index=index+1))
+    sed -ri "s/# License_Key/License_Key ${array[index]}/g" /etc/universal/upps.conf;((index=index+1))
+fi
+
+# USAP_LICENSE="UNIVERSAL CONNECTOR,STONEBRANCH,UNIX,PERPETUAL,2029.12.31,F901-5B2C-1208-D6CC-FB88-55D0-823C-B63A"
+if [[ -z "$USAP_LICENSE" ]]
+then
+    echo "\$USAP_LICENSE NOT SET, skipping"
+else
+    echo "Setting up LICENSE with \$USAP_LICENSE"
+    # Add USAP License
+    IFS=',' read -r -a array <<< "$USAP_LICENSE"
+    index=0
+    sed -ri "s/# License_Product/License_Product ${array[index]}/g" /etc/universal/usap.conf;((index=index+1))
+    sed -ri "s/# License_Customer/License_Customer ${array[index]}/g" /etc/universal/usap.conf;((index=index+1))
+    sed -ri "s/# License_OS_Type/License_OS_Type ${array[index]}/g" /etc/universal/usap.conf;((index=index+1))
+    sed -ri "s/# License_Type/License_Type ${array[index]}/g" /etc/universal/usap.conf;((index=index+1))
+    sed -ri "s/# License_Expiration_Date/License_Expiration_Date ${array[index]}/g" /etc/universal/usap.conf;((index=index+1))
+    sed -ri "s/# License_Key/License_Key ${array[index]}/g" /etc/universal/usap.conf
+fi
+
+# UEM_LICENSE="EVENT MONITOR SERVER,STONEBRANCH,UNIX,PERPETUAL,2029.12.31,yes,EAC7-BCF6-5302-D081-EFD2-69B4-FBDD-AC18"
+if [[ -z "$UEM_LICENSE" ]]
+then
+    echo "\$UEM_LICENSE NOT SET, skipping"
+else
+    echo "Setting up LICENSE with \$UEM_LICENSE"
+    # Add UEM License
+    IFS=',' read -r -a array <<< "$UEM_LICENSE"
+    index=0
+    sed -ri "s/# License_Product/License_Product ${array[index]}/g" /etc/universal/uems.conf;((index=index+1))
+    sed -ri "s/# License_Customer/License_Customer ${array[index]}/g" /etc/universal/uems.conf;((index=index+1))
+    sed -ri "s/# License_OS_Type/License_OS_Type ${array[index]}/g" /etc/universal/uems.conf;((index=index+1))
+    sed -ri "s/# License_Type/License_Type ${array[index]}/g" /etc/universal/uems.conf;((index=index+1))
+    sed -ri "s/# License_Expiration_Date/License_Expiration_Date ${array[index]}/g" /etc/universal/uems.conf;((index=index+1))
+    sed -ri "s/# License_File_Monitoring/License_File_Monitoring ${array[index]}/g" /etc/universal/uems.conf;((index=index+1))
+    sed -ri "s/# License_Key/License_Key ${array[index]}/g" /etc/universal/uems.conf
+fi
+
+# Start the Agent
+/opt/universal/ubroker/bin/ubroker &
+ubroker=$!
+wait "$ubroker"
