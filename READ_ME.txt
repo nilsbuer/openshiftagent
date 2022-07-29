@@ -32,4 +32,4 @@ UAG1082I [1567069878] OMS connection ID ops.agent.AGNT0077 established with OMS 
    INFO [asiMainFunc] (wnasini.c:1060) OPSTRC002I FTP File Monitor Fault Tolerance is DISABLED
 UAG1047I [1567069878] I,Universal Automation Center Agent 6.6.0 Level 0 Release Build 236 Date 20190329150316 started.
    INFO [asiMainFunc] (wnasini.c:1096) OPSASI012I Main task initialization completed, waiting for messages. Agent ID: AGNT0077, Msghub ID: ops.controller.queue, Transports: 7878@192.168.88.22.
-# chnage1
+# chnage2
